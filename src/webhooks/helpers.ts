@@ -1,6 +1,6 @@
 import { Webhook, WebhookEvents } from "../types";
 
-export const webhookHandler = (
+export const webhookHandler = async (
 	body: Webhook,
 	{
 		onError,
@@ -9,38 +9,46 @@ export const webhookHandler = (
 		onTextMessageReceived,
 	}: Omit<WebhookEvents, "onStartListening">
 ) => {
-	body.entry?.forEach((entry) => {
-		entry?.changes?.forEach((change) => {
+	for (const entry of body.entry || []) {
+		for (const change of entry?.changes || []) {
 			//Generally, if not always, the message is just the index 0
 			//But, since the docs don't say anything, we do it through a loop
-			change?.value?.messages?.forEach((message) => {
+			for (const message of change?.value?.messages || []) {
 				//The contact is always the 0 and it is only received when there the messages field is present
 				const contact = change?.value?.contacts[0];
 				//Call message event
-				onMessageReceived && onMessageReceived(message, contact, change?.value?.metadata);
+				if (onMessageReceived) {
+					await onMessageReceived(message, contact, change?.value?.metadata);
+				}
 				//If the message is type of text, then call the respective event
-				if (message.type === "text" && message.text)
-					onTextMessageReceived &&
-						onTextMessageReceived(
-							{
-								id: message.id,
-								type: message.type,
-								text: message.text,
-								from: message.from,
-								timestamp: message.timestamp,
-							},
-							contact,
-							change?.value?.metadata
-						);
-			});
+				if (message.type === "text" && message.text && onTextMessageReceived) {
+					await onTextMessageReceived(
+						{
+							id: message.id,
+							type: message.type,
+							text: message.text,
+							from: message.from,
+							timestamp: message.timestamp,
+						},
+						contact,
+						change?.value?.metadata
+					);
+				}
+			}
 			//Call status event
-			change?.value?.statuses?.forEach((status) => {
-				onStatusReceived && onStatusReceived(status, change?.value?.metadata);
-			});
+			for (const status of change?.value?.statuses || []) {
+				if (onStatusReceived) {
+					await onStatusReceived(status, change?.value?.metadata);
+				}
+			}
 			//Call error event
-			change?.value?.errors?.forEach((err) => onError && onError(err));
-		});
-	});
+			for (const err of change?.value?.errors || []) {
+				if (onError) {
+					await onError(err);
+				}
+			}
+		}
+	}
 };
 
 export type WebhookRequest = {
@@ -55,9 +63,9 @@ export type WebhookResponse = {
 
 export const createWebhookPostHandler =
 	(events: WebhookEvents) =>
-	(request: WebhookRequest): WebhookResponse => {
+	async (request: WebhookRequest): Promise<WebhookResponse> => {
 		try {
-			webhookHandler(request.body, events);
+			await webhookHandler(request.body, events);
 			return { status: 200, body: "success" };
 		} catch (error) {
 			console.error("Webhook processing error:", error);
