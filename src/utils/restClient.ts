@@ -1,4 +1,4 @@
-import ky, { Options } from "ky";
+import ky, { Options } from 'ky';
 
 interface RestClientParams {
 	baseURL?: string;
@@ -34,7 +34,7 @@ export const createRestClient = ({ baseURL, apiToken, errorHandler }: RestClient
 			config?: Options & { baseURL?: string; responseType?: string }
 		) => {
 			const { baseURL: configBaseURL, responseType, ...kyOptions } = config || {};
-			const url = configBaseURL ? `${configBaseURL}/${endpoint}`.replace(/\/+/g, '/').replace(':/', '://') : endpoint;
+			const url = configBaseURL ? new URL(endpoint, configBaseURL).toString() : endpoint;
 			
 			const response = await (configBaseURL ? ky.get(url, {
 				searchParams: params as Record<string, string | number | boolean>,
@@ -46,6 +46,9 @@ export const createRestClient = ({ baseURL, apiToken, errorHandler }: RestClient
 			
 			if (responseType === "stream") {
 				return response.body as any;
+			}
+			if (responseType === "arraybuffer") {
+				return response.arrayBuffer() as any;
 			}
 			return response.json() as Promise<Response>;
 		},

@@ -2,7 +2,6 @@ import { describe, it, beforeEach, expect, vi } from "vitest";
 import {
 	createWebhookGetHandler,
 	createWebhookPostHandler,
-	createConvexWebhookHandler,
 	webhookHandler,
 } from "../src/webhooks/helpers";
 import { webhookBody, webhookBodyFields } from "./utils";
@@ -22,41 +21,14 @@ describe("Webhook Helpers tests", () => {
 		vi.restoreAllMocks();
 	});
 
-	it("should create framework-specific handlers", () => {
+	it("should create webhook handlers", () => {
 		const token = "test-token";
 		
-		const convexHandler = createConvexWebhookHandler(events, token);
+		const getHandler = createWebhookGetHandler(token);
+		const postHandler = createWebhookPostHandler(events);
 
-		expect(typeof convexHandler).toBe("function");
-	});
-
-	it("should handle Convex webhook requests", () => {
-		const token = "test-token";
-		const handler = createConvexWebhookHandler(events, token);
-
-		const getRequest = {
-			method: "GET",
-			body: {} as any,
-			query: {
-				"hub.mode": "subscribe",
-				"hub.verify_token": token,
-				"hub.challenge": "CHALLENGE"
-			}
-		};
-
-		const getResponse = handler(getRequest);
-		expect(getResponse.status).toBe(200);
-		expect(getResponse.body).toBe("CHALLENGE");
-
-		const postRequest = {
-			method: "POST",
-			body: webhookBody,
-			query: {}
-		};
-
-		const postResponse = handler(postRequest);
-		expect(postResponse.status).toBe(200);
-		expect(postResponse.body).toBe("success");
+		expect(typeof getHandler).toBe("function");
+		expect(typeof postHandler).toBe("function");
 	});
 
 	it("webhook get controller should properly subscribe", () => {

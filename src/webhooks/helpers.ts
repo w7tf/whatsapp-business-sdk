@@ -56,8 +56,13 @@ export type WebhookResponse = {
 export const createWebhookPostHandler =
 	(events: WebhookEvents) =>
 	(request: WebhookRequest): WebhookResponse => {
-		webhookHandler(request.body, events);
-		return { status: 200, body: "success" };
+		try {
+			webhookHandler(request.body, events);
+			return { status: 200, body: "success" };
+		} catch (error) {
+			console.error("Webhook processing error:", error);
+			return { status: 500, body: "Internal Server Error" };
+		}
 	};
 
 export const createWebhookGetHandler =
