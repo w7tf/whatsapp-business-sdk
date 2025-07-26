@@ -41,7 +41,6 @@
 		"author": "MarcosNicolau"
 	},
 	"dependencies": {
-		"form-data": "^4.0.0",
 		"ky": "^1.8.2"
 	},
 	"devDependencies": {
