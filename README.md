@@ -1,38 +1,61 @@
-![GitHub Workflow Status](https://img.shields.io/github/actions/workflow/status/MarcosNicolau/whatsapp-business-sdk/npm_publish.yml?branch=main)
-![Known Vulnerabilities](https://snyk.io/test/github/MarcosNicolau/whatsapp-business-sdk/badge.svg)
-![Codecov](https://img.shields.io/codecov/c/github/MarcosNicolau/whatsapp-business-sdk?token=G20JHIZMRW)
-![GitHub last commit](https://img.shields.io/github/last-commit/MarcosNicolau/whatsapp-business-sdk)
-![GitHub top language](https://img.shields.io/github/languages/top/MarcosNicolau/whatsapp-business-sdk)
-![npm bundle size](https://img.shields.io/bundlephobia/minzip/whatsapp-business)
-![npm](https://img.shields.io/npm/v/whatsapp-business)
-![GitHub](https://img.shields.io/github/license/MarcosNicolau/whatsapp-business-sdk)
+# WhatsApp Business SDK (Worker Compatible)
 
-# WhatsApp Business API SDK
+> Worker-compatible fork of [whatsapp-business-sdk](https://github.com/MarcosNicolau/whatsapp-business-sdk) with zero Node.js dependencies
 
-Node.js connector for WhatsApp Business Cloud API, with TypeScript support.
+A TypeScript connector for WhatsApp Business APIs
 
-This project offers a solution to easily interact with WhatsApp Business Cloud API with Heavy integration testing with real API calls to support implementation stability. Built with Axios and no other extra dependency!
+## Key Features
 
-The connector is fully typed, tested and documented!
+- ✅ **Zero Node.js runtime dependencies** - works anywhere JavaScript runs
+- ✅ **Worker environment compatible** - Cloudflare Workers, Deno Deploy, etc.
+- ✅ **Web-standard APIs** - Uses File, Blob, ArrayBuffer instead of filesystem
+- ✅ **Framework-agnostic webhooks** - No Express dependency required
+- ✅ **Full TypeScript support** - Comprehensive type definitions
+- ✅ **Comprehensive test coverage** - Reliable and well-tested
+
+## Key Differences from Original
+
+This fork modernizes the SDK for worker environments:
+
+- **Media Upload**: Uses `File`/`Blob` instead of file paths
+- **Media Download**: Returns `ArrayBuffer` instead of writing to filesystem  
+- **Webhooks**: Framework-agnostic helpers instead of Express-only client
+- **Dependencies**: Replaced `axios` with `ky`, removed `express` and `fs`
+- **Testing**: Migrated from Jest to Vitest for better ES module support
 
 ## Installation
 
-`npm install whatsapp-business`
+```bash
+npm install @w7tf/whatsapp-business
+# or
+yarn add @w7tf/whatsapp-business
+# or
+pnpm add @w7tf/whatsapp-business
+```
 
-`yarn add whatsapp-business`
+**Zero Node.js dependencies** - works in any JavaScript environment.
+
+## Environment Compatibility
+
+This SDK works in any modern JavaScript environment:
+
+- ✅ **Node.js 18+** - Uses built-in File/Blob support  
+- ✅ **Worker Environments** - Cloudflare Workers, Deno Deploy, etc.
+- ✅ **Edge Functions** - Vercel Edge, Netlify Edge, etc.
+- ✅ **Serverless** - AWS Lambda, Google Cloud Functions, etc.
 
 ## Documentation
 
-Most methods accept JS objects. These can be populated using parameters specified by [WhatsApp's API documentation](https://developers.facebook.com/docs/whatsapp/cloud-api/overview) or following the typescript schema.
+Most methods accept JS objects. These can be populated using parameters specified by [WhatsApp's API documentation](https://developers.facebook.com/docs/whatsapp/cloud-api/overview) or following the TypeScript schema.
 
 # Usage
 
-### Basic usage
+## Basic Usage
 
 ```typescript
-import { WABAClient, WABAErrorAPI } from "whatsapp-business";
+import { WABAClient, WABAErrorAPI } from "@w7tf/whatsapp-business";
 
-//You cant get it from the meta for developers app administration
+// You can get these from the Meta for Developers app administration
 const client = new WABAClient({
 	accountId: "<YOUR_ACCOUNT_ID>",
 	apiToken: "<YOUR_API_TOKEN>",
@@ -52,9 +75,9 @@ const foo = async () => {
 foo();
 ```
 
-### Sending messages
+## Sending Messages
 
-You can send a text message
+You can send a text message:
 
 ```typescript
 const sendTextMessage = async (body: string, to: string) => {
@@ -68,7 +91,7 @@ const sendTextMessage = async (body: string, to: string) => {
 };
 ```
 
-or an image
+Or an image:
 
 ```typescript
 const sendPictureMessage = async ({ link, caption }: MediaObject, to: string) => {
@@ -87,109 +110,63 @@ sendPictureMessage(
 );
 ```
 
-### Webhooks
+## Media Upload/Download
 
-The webhook client will handle the subscription and setup for the webhooks. You must have an HTTPS connection and add the server URL in your application management.
-
-For more info, checks the docs [here](https://developers.facebook.com/docs/whatsapp/business-management-api/guides/set-up-webhooks).
+### Upload Media (File/Blob)
 
 ```typescript
-import { WebhookClient, WABAClient } from "./index";
+// From Blob (any environment)
+const blob = new Blob([data], { type: "image/jpeg" });
+const response = await client.uploadMedia({ file: blob, type: "image" });
 
-//The token and path must match the values you set on the application management
-const webhookClient = new WebhookClient({
-	token: "<YOUR_VALIDATION_TOKEN>",
-	path: "/whatsapp/webhook",
-	port: 8080,
-});
+// From File constructor (worker environments)
+const file = new File([arrayBuffer], "image.jpg", { type: "image/jpeg" });
+const response = await client.uploadMedia({ file, type: "image" });
+```
 
-const wabaClient = new WABAClient({
-	accountId: "<ACCOUNT_ID>",
-	phoneId: "<PHONE_ID>",
-	apiToken: "<API_TOKEN>",
-});
+### Download Media (ArrayBuffer)
 
-//Starts a server and triggers the received functions based on the webhook event type
-webhookClient.initWebhook({
-	onStartListening: () => {
-		console.log("Server started listening");
-	},
-	onTextMessageReceived: async (payload, contact) => {
-		try {
-			const messageId = payload.id.toString();
-			const contactNumber = contact.wa_id;
-			//Mark message as read
-			await wabaClient.markMessageAsRead(messageId);
-			//React to message
-			await wabaClient.sendMessage({
-				to: contactNumber,
-				type: "reaction",
-				reaction: { message_id: messageId, emoji: "😄" },
-			});
-			//Respond to message
-			await wabaClient.sendMessage({
-				type: "text",
-				to: contactNumber,
-				text: { body: "Ok!" },
-				//This is optional, it enables reply-to feature
-				context: {
-					message_id: messageId,
-				},
-			});
-		} catch (err) {
-			console.log(err);
-		}
-	},
+```typescript
+const mediaUrl = "https://...";
+const arrayBuffer = await client.downloadMedia(mediaUrl);
+
+// Convert to Blob if needed
+const blob = new Blob([arrayBuffer], { type: "image/jpeg" });
+
+// In worker, return as Response
+return new Response(arrayBuffer, {
+  headers: { "Content-Type": "image/jpeg" }
 });
 ```
 
-You can also provide your own express app:
+## Webhooks (Framework-Agnostic)
+
+The webhook system is now framework-agnostic and works with any HTTP framework or environment.
+
+### Core Webhook Processing
 
 ```typescript
-import { WebhookClient } from "./index";
-import express from "express";
+import { webhookHandler } from "@w7tf/whatsapp-business";
 
-const myApp = express();
-
-const webhookClient = new WebhookClient({
-	token: "<YOUR_VALIDATION_TOKEN>",
-	path: "/whatsapp/webhook",
-	expressApp: {
-		//Set to false if you want to initialize the server yourself
-		//Otherwise, it will start listening when firing initWebhook()
-		shouldStartListening: false,
-		app: myApp,
+// Process webhook payload directly
+webhookHandler(webhookBody, {
+	onMessageReceived: (message, contact, metadata) => {
+		console.log("Message received:", message);
 	},
-});
-
-myApp.listen(8080, () => {
-	console.log("My server nows listens to whatsapp webhooks");
+	onTextMessageReceived: (textMessage, contact, metadata) => {
+		console.log("Text message:", textMessage.text.body);
+	},
+	onStatusReceived: (status, metadata) => {
+		console.log("Message status:", status.status);
+	},
+	onError: (error) => {
+		console.error("Webhook error:", error);
+	}
 });
 ```
 
-If you don't provide a express app the client will create a default app on its own, which you can later access:
 
-```typescript
-import { WebhookClient } from "./index";
-
-const webhookClient = new WebhookClient({
-	token: "<YOUR_VALIDATION_TOKEN>",
-	path: "/whatsapp/webhook",
-	port: 8080,
-});
-
-const app = webhookClient.expressApp.app;
-//Your configuration...
-app.set("trust proxy", true);
-
-webhookClient.initWebhook({
-	onStartListening: () => {
-		console.log("Server started listening");
-	},
-});
-```
-
-## Support
+## API Support
 
 | Cloud API                                     |
 | --------------------------------------------- |
@@ -205,26 +182,12 @@ webhookClient.initWebhook({
 | <ul><li>- [x] Cloud API           |
 | <ul><li>- [ ] Business Management |
 
-| Business Management API |
-| ----------------------- |
-| Currently working on    |
+## License
 
-| Analytics API                  |
-| ------------------------------ |
-| Planning to add future support |
+MIT License - see [LICENSE](LICENSE) file.
 
-# Project
+## Attribution
 
-## Structure
+This is a fork of [whatsapp-business-sdk](https://github.com/MarcosNicolau/whatsapp-business-sdk) by [MarcosNicolau](https://github.com/MarcosNicolau), modified for worker environment compatibility.
 
-This project uses typescript. Resources are stored in 2 key structures:
-
--   <b>src</b>: the whole connector written in typescript
--   <b>dist</b> the packed bundle of the project for use in nodejs environments (generated when running yarn run build).
--   <b>\_\_tests\_\_</b> all the tests for the connector
-
-## Contribution and thanks
-
-Contributions are encouraged, I will review any incoming pull requests.
-
-If you found this project interesting or useful, you would help so much by giving this project a star. Thank you!
+## Contribution
