@@ -1,5 +1,3 @@
-import fs from "fs";
-import FormData from "form-data";
 import {
 	Message,
 	SendMessageResponse,
@@ -16,7 +14,6 @@ import {
 	BusinessProfileFieldsQuery,
 	UpdateBusinessProfilePayload,
 	GetMediaResponse,
-	UploadMediaPayload,
 	UploadMediaResponse,
 	MarkMessageAsReadPayload,
 	BusinessPhoneNumber,
@@ -90,11 +87,14 @@ export class WABAClient {
 	 * All media files sent through this endpoint are encrypted and persist for 30 days, unless they are deleted earlier.
 	 *
 	 * A successful response returns an object with the uploaded media's ID.
+	 *
+	 * @param file - File object (browser) or Blob with file data
+	 * @param type - Media type (image, video, audio, document)
 	 */
-	uploadMedia({ file, type }: Omit<UploadMediaPayload, "messaging_product">) {
+	uploadMedia({ file, type }: { file: File | Blob; type: string }) {
 		const formData = new FormData();
 		formData.append("type", type);
-		formData.append("file", fs.createReadStream(file));
+		formData.append("file", file);
 		formData.append("messaging_product", "whatsapp");
 		return this.restClient.post<UploadMediaResponse, FormData>(
 			`${this.phoneId}/media`,
@@ -116,17 +116,20 @@ export class WABAClient {
 		return this.restClient.delete<DefaultResponse>(mediaId);
 	}
 	/**
-	 * @param mediaUrl your media’s URL
-	 * @param pathToSaveFile the path where you want to store the media
+	 * Downloads media and returns it as an ArrayBuffer.
+	 * In worker environments, you can convert this to a Blob or process as needed.
+	 *
+	 * @param mediaUrl your media's URL
+	 * @returns Promise<ArrayBuffer> - The media file data
 	 */
-	async downloadMedia(mediaUrl: string, pathToSaveFile: string) {
+	async downloadMedia(mediaUrl: string): Promise<ArrayBuffer> {
 		try {
 			const response = await this.restClient.get(
 				mediaUrl,
 				{},
-				{ baseURL: "", responseType: "stream" }
+				{ baseURL: "", responseType: "arraybuffer" }
 			);
-			return response.pipe(fs.createWriteStream(pathToSaveFile));
+			return response;
 		} catch (err) {
 			return Promise.reject(err);
 		}
@@ -232,7 +235,7 @@ export class WABAClient {
 	 *
 	 * @param nodeId is optional, defaults to the account_id
 	 */
-	async getHealthStatus(nodeId?: string) {
+	async getHealthStatus() {
 		return this.restClient.get<HealthStatusResponse>(`${this.accountId}?fields=health_status`);
 	}
 }

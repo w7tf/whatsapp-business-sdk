@@ -1,5 +1,4 @@
 import { Webhook, WebhookEvents } from "../types";
-import { Request, Response } from "express";
 
 export const webhookHandler = (
 	body: Webhook,
@@ -31,7 +30,7 @@ export const webhookHandler = (
 								timestamp: message.timestamp,
 							},
 							contact,
-							change?.value?.metadata,
+							change?.value?.metadata
 						);
 			});
 			//Call status event
@@ -44,18 +43,42 @@ export const webhookHandler = (
 	});
 };
 
-export const postWebhookController = (events: WebhookEvents) => (req: Request, res: Response) => {
-	webhookHandler(req.body, events);
-	return res.send("success");
+export type WebhookRequest = {
+	body: Webhook;
+	query: Record<string, string | string[] | undefined>;
 };
 
-export const getWebhookController = (token: string) => (req: Request, res: Response) => {
-	if (req.query["hub.mode"] == "subscribe" && req.query["hub.verify_token"] == token) {
-		try {
-			return res.send(req.query["hub.challenge"]);
-		} catch (err) {
-			console.error("Could not subscribe to the webhook", `err: ${JSON.stringify(err)}`);
-		}
-	}
-	return res.sendStatus(400);
+export type WebhookResponse = {
+	status: number;
+	body: string;
 };
+
+export const createWebhookPostHandler =
+	(events: WebhookEvents) =>
+	(request: WebhookRequest): WebhookResponse => {
+		try {
+			webhookHandler(request.body, events);
+			return { status: 200, body: "success" };
+		} catch (error) {
+			console.error("Webhook processing error:", error);
+			return { status: 500, body: "Internal Server Error" };
+		}
+	};
+
+export const createWebhookGetHandler =
+	(token: string) =>
+	(request: WebhookRequest): WebhookResponse => {
+		const { query } = request;
+
+		if (query["hub.mode"] === "subscribe" && query["hub.verify_token"] === token) {
+			try {
+				const challenge = query["hub.challenge"];
+				if (typeof challenge === "string") {
+					return { status: 200, body: challenge };
+				}
+			} catch (err) {
+				console.error("Could not subscribe to the webhook", `err: ${JSON.stringify(err)}`);
+			}
+		}
+		return { status: 400, body: "Bad Request" };
+	};

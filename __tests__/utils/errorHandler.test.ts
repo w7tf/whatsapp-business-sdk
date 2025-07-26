@@ -1,3 +1,4 @@
+import { describe, it, expect } from "vitest";
 import { DefaultWABAErrorAPI, ERROR_CODES } from "../../src/types";
 import { WABAErrorHandler } from "../../src/utils/errorHandler";
 
