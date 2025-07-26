@@ -47,23 +47,23 @@ describe("Webhook Helpers tests", () => {
 		expect(response.body).toBe("CHALLENGE");
 	});
 
-	it("webhook post controller", () => {
+	it("webhook post controller", async () => {
 		const req = {
 			body: {} as any,
 			query: {}
 		};
-		const response = createWebhookPostHandler(events)(req);
+		const response = await createWebhookPostHandler(events)(req);
 		expect(response.status).toBe(200);
 		expect(response.body).toBe("success");
 	});
 
-	it("webhook handler fires the events", () => {
+	it("webhook handler fires the events", async () => {
 		const body = webhookBody;
 		const fields = webhookBodyFields;
 		const contact = body.entry[0].changes[0].value.contacts[0];
 		const metadata = body.entry[0].changes[0].value.metadata;
 
-		webhookHandler(body, events);
+		await webhookHandler(body, events);
 		expect(events.onMessageReceived).toHaveBeenCalledTimes(2);
 		expect(events.onError).toHaveBeenCalledTimes(2);
 		expect(events.onStatusReceived).toHaveBeenCalledTimes(2);
