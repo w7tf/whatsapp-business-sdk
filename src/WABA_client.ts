@@ -38,10 +38,12 @@ export class WABAClient {
 	restClient: ReturnType<typeof createRestClient>;
 	phoneId: string;
 	accountId: string;
+	private apiToken: string;
 
 	constructor({ apiToken, phoneId, accountId }: WABAClientArgs) {
 		this.phoneId = phoneId;
 		this.accountId = accountId;
+		this.apiToken = apiToken;
 		this.restClient = createRestClient({
 			apiToken,
 			baseURL: "https://graph.facebook.com/v19.0",
@@ -124,12 +126,19 @@ export class WABAClient {
 	 */
 	async downloadMedia(mediaUrl: string): Promise<ArrayBuffer> {
 		try {
-			const response = await this.restClient.get(
-				mediaUrl,
-				{},
-				{ baseURL: "", responseType: "arraybuffer" }
-			);
-			return response;
+			const response = await fetch(mediaUrl, {
+				headers: {
+					Authorization: `Bearer ${this.apiToken}`,
+				},
+			});
+
+			if (!response.ok) {
+				throw new Error(
+					`Failed to download media: ${response.status} ${response.statusText}`
+				);
+			}
+
+			return await response.arrayBuffer();
 		} catch (err) {
 			return Promise.reject(err);
 		}
